@@ -31,82 +31,63 @@ function ISCutHair:complete()
 	if resetHairGrowingTime then
 		self.character:resetHairGrowingTime();
 	end
-	
 
-	-- reduce hairgel or hairspray
-	if SpongieHairAPI.HairGelOrHairSprayList[newHairStyle:getName()] == true then
-		local hairgel = self.character:getInventory():getItemFromType("Hairgel", true, true) or self.character:getInventory():getItemFromType("Hairspray2", true, true) or self.character:getInventory():getFirstTagRecurse("DoHairdo");
+	
+	local SpongieHairAPI = require("SpongieHairAPI")
+	
+	local hair = newHairStyle:getName()
+	local usedHairgel = false
+	if SpongieHairAPI:GetHairGel(hair) then
+		local hairgel = self.character:getInventory():getItemFromType("Hairgel", true, true)
 		if hairgel then
-			hairgel:UseAndSync();
+			hairgel:UseAndSync()
+			usedHairgel = true
 		end
 	end
-	-- reduce hairspray
-	if SpongieHairAPI.HairSprayList[newHairStyle:getName()] == true then
+	if SpongieHairAPI:GetHairSpray(hair) and not usedHairgel then
 		local hairspray = self.character:getInventory():getItemFromType("Hairspray2", true, true)
 		if hairspray then
 			hairspray:UseAndSync();
 		end
 	end
-	-- reduce hairgel
-	if SpongieHairAPI.HairGelList[newHairStyle:getName()] == true then
-		local hairgel = self.character:getInventory():getItemFromType("Hairgel", true, true) or self.character:getInventory():getFirstTagRecurse("SlickHair")
-		if hairgel then
-			hairgel:UseAndSync();
-		end
-	end
-	
 	sendHumanVisual(self.character)
 	return true
 end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISWearClothing:complete()
-
 	if self:isAlreadyEquipped(self.item) then
 		return false;
 	end
 
 	-- kludge for knapsack sprayers
-	if self.item:hasTag("ReplacePrimary") then
+	if self.item:hasTag(ItemTag.REPLACE_PRIMARY) then
 		if self.character:getPrimaryHandItem() then
 			self.character:removeFromHands(self.character:getPrimaryHandItem())
 		end
 		self.character:setPrimaryHandItem(self.item)
 	end
-
-	if (instanceof(self.item, "InventoryContainer") or self.item:hasTag("Wearable")) and self.item:canBeEquipped() ~= "" then
+	if (instanceof(self.item, "InventoryContainer") or self.item:hasTag(ItemTag.WEARABLE)) and self.item:canBeEquipped() ~= "" then
 		self.character:removeFromHands(self.item);
 		self.character:setWornItem(self.item:canBeEquipped(), self.item);
-
-	elseif self.item:getCategory() == "Clothing" then
-
+	elseif self.item:getCategory() == "Clothing" or self.item:getCategory() == "AlarmClock" then
 		if self.item:getBodyLocation() ~= "" then
 			self.character:setWornItem(self.item:getBodyLocation(), self.item);
-            
-			-- Replace hardcoded mohawk
+			
+			local SpongieHairAPI = require("SpongieHairAPI")
+			local flatHair = SpongieHairAPI:GetFlatHair(self.character:getHumanVisual():getHairModel())
 
-			--for some reason this doesnt work on mohawks??
-			--it works correctly but something that runs after this code just sets mohawks back to mohawkflat anyway
-			--this literally shouldnt be possible lmao
-
-			local flatHair = SpongieHairAPI.FlatHairList[self.character:getHumanVisual():getHairModel()]
 			print("CHECKING IF HAIR SHOULD BE FLATTENED")
 			print(self.character:getHumanVisual():getHairModel())
 			print(flatHair)
 
-			--flatten hair (we only flat if the item is not a bandage or bandana)
 			if flatHair then
-                if self.item:getBodyLocation():contains("Hat") and not self.item:getName():contains("Band") and not self.item:getName():contains("Visor") then
-                    self.character:getHumanVisual():setHairModel(flatHair)
-                    self.character:resetModel()
-                    -- sendHumanVisual(self.character)
-                    
-                    print("FLATTENING HAIR NOW")
-                end
-			end
-
+				if (self.item:getBodyLocation() == ItemBodyLocation.HAT or self.item:getBodyLocation() == ItemBodyLocation.FULL_HAT) and not self.item:getName():contains("Band") and not self.item:getName():contains("Visor")  then
+					self.character:getHumanVisual():setHairModel(flatHair);
+					self.character:resetModel();
+				end
 		end
-
+		end
 	end
 	return true;
 end

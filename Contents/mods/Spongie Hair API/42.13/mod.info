@@ -4,3 +4,4 @@ author=Spongie
 poster=poster.png
 icon=icon.png
 description= Un-hardcodes some features related to hair
+loadModAfter=\improvedhairmenubuild42

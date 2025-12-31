@@ -1,29 +1,22 @@
-require "XpSystem/ISUI/ISCharacterScreen";
-require "SpongieHairAPI";
 
-local ContextMenu_CutHairFor = string.gsub(getText("ContextMenu_CutHairFor"),"%%1","")
-local ContextMenu_TieHair    = string.gsub(getText("ContextMenu_TieHair")   ,"%%1","")
-
+if getActivatedMods():contains("\\improvedhairmenubuild42") then return end
 
 local function predicateRazor(item)
 	if item:isBroken() then return false end
-	return item:hasTag("Razor") or item:getType() == "Razor"
+	return item:hasTag(ItemTag.RAZOR) or item:getType() == "Razor"
 end
 
 local function predicateScissors(item)
 	if item:isBroken() then return false end
-	return item:hasTag("Scissors") or item:getType() == "Scissors"
+	return item:hasTag(ItemTag.SCISSORS) or item:getType() == "Scissors"
 end
-local function predicateNotBroken(item)
-	return not item:isBroken()
+local function predicateHairGel(item)
+	return item:getType() == "Hairgel"
 end
-local function predicateDoHairdo(item)
-	return item:hasTag("DoHairdo") or item:getType() == "Hairgel" or item:getType() == "Hairspray2"
+local function predicateHairSpray(item)
+	return item:getType() == "Hairspray2"
 end
 
-local function predicateSlickHair(item)
-	return item:hasTag("SlickHair") or item:getType() == "Hairgel"
-end
 
 local function compareHairStyle(a, b)
 	if a:getName() == "Bald" then return true end
@@ -51,11 +44,9 @@ function ISCharacterScreen:hairMenu(button)
 		table.insert(hairList, hairStyles:get(i-1))
 	end
 	table.sort(hairList, compareHairStyle)
+
 	-- if we have hair long enough to trim it
 	if currentHairStyle and currentHairStyle:getLevel() > 0 then
---		local option = context:addOption(getText("IGUI_char_HairStyle"))
---		local hairMenu = context:getNew(context)
---		context:addSubMenu(option, hairMenu)
 		local hairMenu = context
 		
 		if isDebugEnabled() then
@@ -97,42 +88,52 @@ function ISCharacterScreen:hairMenu(button)
 				end
 			end
 			table.sort(hairList2, compareHairStyle)
-			
+
+			local hasScissors = player:getInventory():containsEvalRecurse(predicateScissors)
+			local hasRazor = player:getInventory():containsEvalRecurse(predicateRazor)
+			local hasHairGel = player:getInventory():containsEvalRecurse(predicateHairGel)
+			local hasHairSpray = player:getInventory():containsEvalRecurse(predicateHairSpray)
+
+			local SpongieHairAPI = require("SpongieHairAPI")
 			for _,hairStyle in ipairs(hairList2) do
-				local option = hairMenu:addOption(getText("ContextMenu_CutHairFor", getText("IGUI_Hair_" .. hairStyle:getName())), player, ISCharacterScreen.onCutHair, hairStyle:getName(), 300);
-				if hairStyle:getName() == "Bald" then
+				local hair = hairStyle:getName()
+
+				local option = hairMenu:addOption(getText("ContextMenu_CutHairFor", getText("IGUI_Hair_" .. hair)), player, ISCharacterScreen.onCutHair, hair, 300);
+				if hair == "Bald" then
 					option.name = getText("ContextMenu_ShaveHair");
-					if not player:getInventory():containsEvalRecurse(predicateRazor) and not player:getInventory():containsEvalRecurse(predicateScissors) then
+					if not hasRazor and not hasScissors then
 						self:addTooltip(option, getText("Tooltip_requireRazorOrScissors"));
 					end
-				-- Replace hardcoded mohawk
-				elseif SpongieHairAPI.HairGelOrHairSprayList[hairStyle:getName()] == true then
-					-- print(hairStyle:getName() .. " REQUIRES HAIR GEL OR HAIR SPRAY")
-					option.name = getText("ContextMenu_GelHairFor", getText("IGUI_Hair_" .. hairStyle:getName()))
-					if not player:getInventory():containsEvalRecurse(predicateDoHairdo) then
-						self:addTooltip(option, getText("Tooltip_requireHairGelOrHairSpray"));
+				else
+					local hairGel = SpongieHairAPI:GetHairGel(hair)
+					local hairSpray = SpongieHairAPI:GetHairSpray(hair)
+					
+					if hairGel and hairSpray then
+						-- print(hairStyle:getName() .. " REQUIRES HAIR GEL OR HAIR SPRAY")
+						option.name = getText("ContextMenu_GelHairFor", getText("IGUI_Hair_" .. hair))
+						if not hasHairGel and not hasHairSpray  then
+							self:addTooltip(option, getText("Tooltip_requireHairGelOrHairSpray"));
+						end
+					elseif hairGel then
+						-- print(hairStyle:getName() .. " REQUIRES HAIR GEL")
+						option.name = getText("ContextMenu_GelHairFor", getText("IGUI_Hair_" .. hair))
+						if not hasHairGel then
+							self:addTooltip(option, getText("Tooltip_requireHairGel"));
+						end
+					elseif hairSpray then
+						-- print(hairStyle:getName() .. " REQUIRES HAIR SPRAY")
+						option.name = getText("ContextMenu_GelHairFor", getText("IGUI_Hair_" .. hair))
+						if not hasHairSpray then
+							self:addTooltip(option, getText("Tooltip_requireHairSpray"));
+						end
+
+					elseif not hasScissors then
+						self:addTooltip(option, getText("Tooltip_RequireScissors"));
 					end
-				elseif SpongieHairAPI.HairGelList[hairStyle:getName()] == true then
-					-- print(hairStyle:getName() .. " REQUIRES HAIR GEL")
-					option.name = getText("ContextMenu_GelHairFor", getText("IGUI_Hair_" .. hairStyle:getName()))
-					if not player:getInventory():containsEvalRecurse(predicateSlickHair) then
-						self:addTooltip(option, getText("Tooltip_requireHairGel"));
-					end
-				elseif SpongieHairAPI.HairSprayList[hairStyle:getName()] == true then
-					-- print(hairStyle:getName() .. " REQUIRES HAIR SPRAY")
-					option.name = getText("ContextMenu_GelHairFor", getText("IGUI_Hair_" .. hairStyle:getName()))
-					if not player:getInventory():containsTypeRecurse("Hairspray2") then
-						self:addTooltip(option, getText("Tooltip_requireHairSpray"));
-					end
-				elseif not player:getInventory():containsTagEvalRecurse("Scissors", predicateNotBroken) then
-					self:addTooltip(option, getText("Tooltip_RequireScissors"));
 				end
 			end
 		end
 	else
---		local option = context:addOption(getText("IGUI_char_HairStyle"))
---		local hairMenu = context:getNew(context)
---		context:addSubMenu(option, hairMenu)
 		local hairMenu = context
 		
 		if isDebugEnabled() then

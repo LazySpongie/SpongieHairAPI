@@ -1,31 +1,45 @@
 
-local activatedMods = {}
-local mods = getActivatedMods()
-for i = 0, mods:size() - 1 do
-    local shortId = string.match(mods:get(i), "\\(.+)$")
-    activatedMods[shortId] = true
-	-- local s = luautils.split(mods:get(i), "\\");
-    -- activatedMods[s[1]] = true
-end
-if activatedMods["improvedhairmenu"] ~= true then return end
+if not getActivatedMods():contains("\\improvedhairmenubuild42") then return end
 
-require "z_improved_hair_menu/InGame/CharacterScreen";
-require "XpSystem/ISUI/ISCharacterScreen";
-require "SpongieHairAPI";
-
-
+require "improvedhairmenu\InGame\CharacterScreen";
 
 local ContextMenu_CutHairFor = string.gsub(getText("ContextMenu_CutHairFor"),"%%1","")
 local ContextMenu_TieHair    = string.gsub(getText("ContextMenu_TieHair")   ,"%%1","")
 
+-- Build 42.13+ uses ItemTag objects (not strings) for hasTag / containsTagEvalRecurse.
+
+local function IHM_itemHasTag(item, tagObj, fallbackString)
+	if not item or not item.hasTag then return false end
+
+	if tagObj ~= nil then
+		local ok, res = pcall(item.hasTag, item, tagObj)
+		if ok then return res == true end
+	end
+
+	-- Back-compat: older builds (or other environments) may still accept strings
+	if fallbackString ~= nil then
+		local ok, res = pcall(item.hasTag, item, fallbackString)
+		return ok and res == true
+	end
+
+	return false
+end
+
 local function predicateRazor(item)
 	if item:isBroken() then return false end
-	return item:hasTag("Razor") or item:getType() == "Razor"
+	if item:getType() == "Razor" then return true end
+
+	-- Prefer ItemTag constant (42.13+)
+	local tagObj = (ItemTag and ItemTag.RAZOR) or nil
+	return IHM_itemHasTag(item, tagObj, "Razor")
 end
 
 local function predicateScissors(item)
 	if item:isBroken() then return false end
-	return item:hasTag("Scissors") or item:getType() == "Scissors"
+	if item:getType() == "Scissors" then return true end
+
+	local tagObj = (ItemTag and ItemTag.SCISSORS) or nil
+	return IHM_itemHasTag(item, tagObj, "Scissors")
 end
 
 local function predicateNotBroken(item)
@@ -107,7 +121,7 @@ function ISCharacterScreen:hairMenu(button)
 			local hairList2 = {}
 			-- add all "under level" we can find, any level 2 hair can be cut into a level 1
 			for _,hairStyle in ipairs(hairList) do
-				if not hairStyle:isAttachedHair() and not hairStyle:isNoChoose() and hairStyle:getLevel() <= currentHairStyle:getLevel() and hairStyle:getName() ~= "" then
+				if not hairStyle:isAttachedHair() and not hairStyle:isNoChoose() and hairStyle:getLevel() < currentHairStyle:getLevel() and hairStyle:getName() ~= "" then
 					table.insert(hairList2, hairStyle)
 				end
 			end
@@ -121,6 +135,13 @@ function ISCharacterScreen:hairMenu(button)
 			end
 			table.sort(hairList2, compareHairStyle)
 			
+			local inv = player:getInventory()
+			local hasRazor    = inv:containsEvalRecurse(predicateRazor)
+			local hasScissors = inv:containsEvalRecurse(predicateScissors)
+			local hasHairgel  = inv:containsTypeRecurse("Hairgel") or inv:containsTypeRecurse("HairGel")
+			
+			
+			local SpongieHairAPI = require("SpongieHairAPI")
 			for _,hairStyle in ipairs(hairList2) do
 				local info = {
 					id = hairStyle:getName(),
@@ -131,17 +152,18 @@ function ISCharacterScreen:hairMenu(button)
 					requirements = {},
 					actionTime = 300,
 				}
-
+				
+				local hairGel = SpongieHairAPI:GetHairGel(hairStyle:getName())
+				local hairSpray = SpongieHairAPI:GetHairSpray(hairStyle:getName())
 				if hairStyle:getName() == "Bald" then
-					info.requirements.razor = player:getInventory():containsEvalRecurse(predicateRazor)
-					info.requirements.scissors = player:getInventory():containsEvalRecurse(predicateScissors)
-					
-				elseif SpongieHairAPI.GelledHairList[hairStyle:getName()] ~= nil then
-					info.requirements.hairgel = player:getInventory():containsTypeRecurse("Hairgel")
-				elseif player:getInventory():containsTagEvalRecurse("Scissors", predicateNotBroken) then
-					info.requirements.scissors = true
+					info.requirements.razor = hasRazor
+					info.requirements.scissors = hasScissors
+				elseif hairGel then
+					info.requirements.hairgel = hasHairgel
+				elseif hairSpray then
+					info.requirements.hairgel = hasHairgel
 				else
-					info.requirements.scissors = false
+					info.requirements.scissors = hasScissors
 				end
 
 				table.insert(cut_options, info)
