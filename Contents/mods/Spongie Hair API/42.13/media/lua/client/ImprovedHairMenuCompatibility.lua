@@ -121,15 +121,7 @@ function ISCharacterScreen:hairMenu(button)
 			local hairList2 = {}
 			-- add all "under level" we can find, any level 2 hair can be cut into a level 1
 			for _,hairStyle in ipairs(hairList) do
-				if not hairStyle:isAttachedHair() and not hairStyle:isNoChoose() and hairStyle:getLevel() < currentHairStyle:getLevel() and hairStyle:getName() ~= "" then
-					table.insert(hairList2, hairStyle)
-				end
-			end
-			-- add other special trim
-			for i=1,currentHairStyle:getTrimChoices():size() do
-				local styleId = currentHairStyle:getTrimChoices():get(i-1)
-				local hairStyle = player:isFemale() and getHairStylesInstance():FindFemaleStyle(styleId) or getHairStylesInstance():FindMaleStyle(styleId)
-				if hairStyle then
+				if not hairStyle:isAttachedHair() and not hairStyle:isNoChoose() and hairStyle:getLevel() <= currentHairStyle:getLevel() and hairStyle:getName() ~= "" then
 					table.insert(hairList2, hairStyle)
 				end
 			end
@@ -139,7 +131,6 @@ function ISCharacterScreen:hairMenu(button)
 			local hasRazor    = inv:containsEvalRecurse(predicateRazor)
 			local hasScissors = inv:containsEvalRecurse(predicateScissors)
 			local hasHairgel  = inv:containsTypeRecurse("Hairgel") or inv:containsTypeRecurse("HairGel")
-			
 			
 			local SpongieHairAPI = require("SpongieHairAPI")
 			for _,hairStyle in ipairs(hairList2) do

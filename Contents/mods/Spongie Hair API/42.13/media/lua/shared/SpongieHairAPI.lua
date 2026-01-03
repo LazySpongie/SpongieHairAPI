@@ -27,10 +27,10 @@ local vanillahairs = {
 	{name = "MohawkSpike", flatHair = "MohawkFlat", hairGel = true, hairSpray = true},
 	{name = "MohawkShort", flatHair = "MohawkFlat", hairGel = true, hairSpray = true},
 
-	{name = "Spike", flatHair = "", hairGel = true, hairSpray = true},
-	{name = "LibertySpikes", flatHair = "", hairGel = true, hairSpray = true},
-	{name = "GreasedBack", flatHair = "", hairGel = true, hairSpray = false},
-	{name = "Buffont", flatHair = "", hairGel = false, hairSpray = true},
+	{name = "Spike", hairGel = true, hairSpray = true},
+	{name = "LibertySpikes", hairGel = true, hairSpray = true},
+	{name = "GreasedBack", hairGel = true},
+	{name = "Buffont", hairSpray = true},
 }
 
 for i,v in ipairs(vanillahairs) do
