@@ -12,11 +12,11 @@ function SpongieHairAPI:GetFlatHair(hair)
 	if not SpongieHairAPI.Hairs[hair] then return nil end
 	return SpongieHairAPI.Hairs[hair].flatHair
 end
-function SpongieHairAPI:GetHairGel(hair)
+function SpongieHairAPI:NeedHairGel(hair)
 	if not SpongieHairAPI.Hairs[hair] then return false end
 	return SpongieHairAPI.Hairs[hair].hairGel
 end
-function SpongieHairAPI:GetHairSpray(hair)
+function SpongieHairAPI:NeedHairSpray(hair)
 	if not SpongieHairAPI.Hairs[hair] then return false end
 	return SpongieHairAPI.Hairs[hair].hairSpray
 end

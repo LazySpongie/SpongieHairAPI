@@ -4,8 +4,8 @@
         "enableReindex": false,
         "encoding": "utf-8",
         "ignoreDir": [
-            "Contents/mods/Spongie Hair API/media",
-            "Contents/mods/Spongie Hair API/42.0"
+            "Contents/mods/Spongie Hairstyle Unlocker/media",
+            "Contents/mods/Spongie Hairstyle Unlocker/42.0"
         ],
         "ignoreGlobs": [],
         "library": [
@@ -15,7 +15,7 @@
         "preloadFileSize": 0,
         "reindexDuration": 5000,
         "workspaceRoots": [
-            "Contents/mods/Spongie Hair/42.13/media/lua"
+            "Contents/mods/Spongie Hairstyle Unlocker/42.13/media/lua"
         ]
     },
     "runtime": {

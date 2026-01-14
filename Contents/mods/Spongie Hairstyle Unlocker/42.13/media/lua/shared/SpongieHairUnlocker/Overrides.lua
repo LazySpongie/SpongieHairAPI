@@ -33,18 +33,18 @@ function ISCutHair:complete()
 	end
 
 	
-	local SpongieHairAPI = require("SpongieHairAPI")
+	local SpongieHairAPI = require("SpongieHairUnlocker/SpongieHairAPI")
 	
 	local hair = newHairStyle:getName()
 	local usedHairgel = false
-	if SpongieHairAPI:GetHairGel(hair) then
+	if SpongieHairAPI:NeedHairGel(hair) then
 		local hairgel = self.character:getInventory():getItemFromType("Hairgel", true, true)
 		if hairgel then
 			hairgel:UseAndSync()
 			usedHairgel = true
 		end
 	end
-	if SpongieHairAPI:GetHairSpray(hair) and not usedHairgel then
+	if SpongieHairAPI:NeedHairSpray(hair) and not usedHairgel then
 		local hairspray = self.character:getInventory():getItemFromType("Hairspray2", true, true)
 		if hairspray then
 			hairspray:UseAndSync();
@@ -67,26 +67,30 @@ function ISWearClothing:complete()
 		end
 		self.character:setPrimaryHandItem(self.item)
 	end
+	
 	if (instanceof(self.item, "InventoryContainer") or self.item:hasTag(ItemTag.WEARABLE)) and self.item:canBeEquipped() ~= "" then
 		self.character:removeFromHands(self.item);
 		self.character:setWornItem(self.item:canBeEquipped(), self.item);
+
 	elseif self.item:getCategory() == "Clothing" or self.item:getCategory() == "AlarmClock" then
+
 		if self.item:getBodyLocation() ~= "" then
 			self.character:setWornItem(self.item:getBodyLocation(), self.item);
 			
-			local SpongieHairAPI = require("SpongieHairAPI")
+			local SpongieHairAPI = require("SpongieHairUnlocker/SpongieHairAPI")
 			local flatHair = SpongieHairAPI:GetFlatHair(self.character:getHumanVisual():getHairModel())
 
-			print("CHECKING IF HAIR SHOULD BE FLATTENED")
-			print(self.character:getHumanVisual():getHairModel())
-			print(flatHair)
+			-- print("CHECKING IF HAIR SHOULD BE FLATTENED")
+			-- print(self.character:getHumanVisual():getHairModel())
+			-- print(flatHair)
 
+			--flatten hair (we only flat if the item is not a bandage or bandana)
 			if flatHair then
 				if (self.item:getBodyLocation() == ItemBodyLocation.HAT or self.item:getBodyLocation() == ItemBodyLocation.FULL_HAT) and not self.item:getName():contains("Band") and not self.item:getName():contains("Visor")  then
 					self.character:getHumanVisual():setHairModel(flatHair);
 					self.character:resetModel();
 				end
-		end
+			end
 		end
 	end
 	return true;

@@ -4,58 +4,53 @@ require "TimedActions/ISWearClothing";
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISCutHair:complete()
-	local hair = getHairStylesInstance():FindMaleStyle(self.hairStyle)
+	local newHairStyle = getHairStylesInstance():FindMaleStyle(self.hairStyle)
 	if self.character:isFemale() then
-		hair = getHairStylesInstance():FindFemaleStyle(self.hairStyle)
+		newHairStyle = getHairStylesInstance():FindFemaleStyle(self.hairStyle)
 	end
 
-	if self.hairStyle == "Bald" then
+	if newHairStyle:getName():contains("Bald")then
 		self.character:getHumanVisual():setHairColor(self.character:getHumanVisual():getNaturalHairColor())
 	end
 
 	local resetHairGrowingTime = true
 
 	-- if we're attaching our hair we need to set the non attached model, or if we untie, we reset our model
-	if hair:isAttachedHair() and not self.character:getHumanVisual():getNonAttachedHair() then
+	if newHairStyle:isAttachedHair() and not self.character:getHumanVisual():getNonAttachedHair() then
 		self.character:getHumanVisual():setNonAttachedHair(self.character:getHumanVisual():getHairModel());
 		resetHairGrowingTime = false
 	end
-	if self.character:getHumanVisual():getNonAttachedHair() and not hair:isAttachedHair() then
+	if self.character:getHumanVisual():getNonAttachedHair() and not newHairStyle:isAttachedHair() then
 		self.character:getHumanVisual():setNonAttachedHair(nil);
 		resetHairGrowingTime = false
 	end
 	self.character:getHumanVisual():setHairModel(self.hairStyle)
 	self.character:resetModel()
-	sendHumanVisual(self.character)
 
 	--if we dont check this then hair growth will be reset when switching to and from tied hairs
 	if resetHairGrowingTime then
 		self.character:resetHairGrowingTime();
 	end
-	
 
-	-- reduce hairgel or hairspray
-	if SpongieHairAPI.HairGelOrHairSprayList[hair:getName()] == true then
-		local hairgel = self.character:getInventory():getItemFromType("Hairgel", true, true) or self.character:getInventory():getItemFromType("Hairspray2", true, true) or self.character:getInventory():getFirstTagRecurse("DoHairdo");
+	
+	local SpongieHairAPI = require("SpongieHairUnlocker/SpongieHairAPI")
+	
+	local hair = newHairStyle:getName()
+	local usedHairgel = false
+	if SpongieHairAPI:NeedHairGel(hair) then
+		local hairgel = self.character:getInventory():getItemFromType("Hairgel", true, true)
 		if hairgel then
-			hairgel:UseAndSync();
+			hairgel:UseAndSync()
+			usedHairgel = true
 		end
 	end
-	-- reduce hairspray
-	if SpongieHairAPI.HairSprayList[hair:getName()] == true then
+	if SpongieHairAPI:NeedHairSpray(hair) and not usedHairgel then
 		local hairspray = self.character:getInventory():getItemFromType("Hairspray2", true, true)
 		if hairspray then
 			hairspray:UseAndSync();
 		end
 	end
-	-- reduce hairgel
-	if SpongieHairAPI.HairGelList[hair:getName()] == true then
-		local hairgel = self.character:getInventory():getItemFromType("Hairgel", true, true) or self.character:getInventory():getFirstTagRecurse("SlickHair")
-		if hairgel then
-			hairgel:UseAndSync();
-		end
-	end
-	
+	sendHumanVisual(self.character)
 	return true
 end
 
@@ -83,25 +78,18 @@ function ISWearClothing:complete()
 		if self.item:getBodyLocation() ~= "" then
 			self.character:setWornItem(self.item:getBodyLocation(), self.item);
             
-			-- Replace hardcoded mohawk
+			local SpongieHairAPI = require("SpongieHairUnlocker/SpongieHairAPI")
+			local flatHair = SpongieHairAPI:GetFlatHair(self.character:getHumanVisual():getHairModel())
 
-			--for some reason this doesnt work on mohawks??
-			--it works correctly but something that runs after this code just sets mohawks back to mohawkflat anyway
-			--this literally shouldnt be possible lmao
-
-			local flatHair = SpongieHairAPI.FlatHairList[self.character:getHumanVisual():getHairModel()]
-			print("CHECKING IF HAIR SHOULD BE FLATTENED")
-			print(self.character:getHumanVisual():getHairModel())
-			print(flatHair)
+			-- print("CHECKING IF HAIR SHOULD BE FLATTENED")
+			-- print(self.character:getHumanVisual():getHairModel())
+			-- print(flatHair)
 
 			--flatten hair (we only flat if the item is not a bandage or bandana)
 			if flatHair then
                 if self.item:getBodyLocation():contains("Hat") and not self.item:getName():contains("Band") and not self.item:getName():contains("Visor") then
-                    self.character:getHumanVisual():setHairModel(flatHair)
-                    self.character:resetModel()
-                    -- sendHumanVisual(self.character)
-                    
-                    print("FLATTENING HAIR NOW")
+                    self.character:getHumanVisual():setHairModel(flatHair);
+					self.character:resetModel();
                 end
 			end
 

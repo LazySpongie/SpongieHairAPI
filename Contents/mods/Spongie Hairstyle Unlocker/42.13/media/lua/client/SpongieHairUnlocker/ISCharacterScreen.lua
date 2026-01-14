@@ -1,36 +1,22 @@
 
-local activatedMods = {}
-local mods = getActivatedMods()
-for i = 0, mods:size() - 1 do
-    local shortId = string.match(mods:get(i), "\\(.+)$")
-    activatedMods[shortId] = true
-	-- local s = luautils.split(mods:get(i), "\\");
-    -- activatedMods[s[1]] = true
-end
-if activatedMods["improvedhairmenu"] ~= true then return end
-
-require "z_improved_hair_menu/InGame/CharacterScreen";
-require "XpSystem/ISUI/ISCharacterScreen";
-require "SpongieHairAPI";
-
-
-
-local ContextMenu_CutHairFor = string.gsub(getText("ContextMenu_CutHairFor"),"%%1","")
-local ContextMenu_TieHair    = string.gsub(getText("ContextMenu_TieHair")   ,"%%1","")
+if getActivatedMods():contains("\\improvedhairmenubuild42") then return end
 
 local function predicateRazor(item)
 	if item:isBroken() then return false end
-	return item:hasTag("Razor") or item:getType() == "Razor"
+	return item:hasTag(ItemTag.RAZOR) or item:getType() == "Razor"
 end
 
 local function predicateScissors(item)
 	if item:isBroken() then return false end
-	return item:hasTag("Scissors") or item:getType() == "Scissors"
+	return item:hasTag(ItemTag.SCISSORS) or item:getType() == "Scissors"
+end
+local function predicateHairGel(item)
+	return item:getType() == "Hairgel"
+end
+local function predicateHairSpray(item)
+	return item:getType() == "Hairspray2"
 end
 
-local function predicateNotBroken(item)
-	return not item:isBroken()
-end
 
 local function compareHairStyle(a, b)
 	if a:getName() == "Bald" then return true end
@@ -41,12 +27,12 @@ local function compareHairStyle(a, b)
 end
 
 
--- Modified vanilla function to produce `hairInfo` instead of context menu options
 function ISCharacterScreen:hairMenu(button)
 	local player = self.char;
 	local context = ISContextMenu.get(self.char:getPlayerNum(), button:getAbsoluteX(), button:getAbsoluteY() + button:getHeight());
 	local playerInv = player:getInventory()
 	
+	-- hair
 	local currentHairStyle = getHairStylesInstance():FindMaleStyle(player:getHumanVisual():getHairModel())
 	local hairStyles = getHairStylesInstance():getAllMaleStyles();
 	if player:isFemale() then
@@ -58,12 +44,10 @@ function ISCharacterScreen:hairMenu(button)
 		table.insert(hairList, hairStyles:get(i-1))
 	end
 	table.sort(hairList, compareHairStyle)
+
 	-- if we have hair long enough to trim it
 	if currentHairStyle and currentHairStyle:getLevel() > 0 then
 		local hairMenu = context
-
-		local tie_options = {}
-		local cut_options = {}
 		
 		if isDebugEnabled() then
 			if player:isFemale() then
@@ -92,15 +76,7 @@ function ISCharacterScreen:hairMenu(button)
 			-- add attached hair
 			for _,hairStyle in ipairs(hairList) do
 				if hairStyle:getLevel() <= currentHairStyle:getLevel() and hairStyle:getName() ~= currentHairStyle:getName() and hairStyle:isAttachedHair() and hairStyle:getName() ~= "" then
-					table.insert(tie_options, {
-						id = hairStyle:getName(),
-						display = getText("IGUI_Hair_" .. hairStyle:getName()),
-						getterName = "getHairModel",
-						setterName = "setHairModel",
-						selected = false,
-						requirements = nil,
-						actionTime = 100, 
-					})
+					hairMenu:addOption(getText("ContextMenu_TieHair", getText("IGUI_Hair_" .. hairStyle:getName())), player, ISCharacterScreen.onCutHair, hairStyle:getName(), 100);
 				end
 			end
 
@@ -111,48 +87,51 @@ function ISCharacterScreen:hairMenu(button)
 					table.insert(hairList2, hairStyle)
 				end
 			end
-			-- add other special trim
-			for i=1,currentHairStyle:getTrimChoices():size() do
-				local styleId = currentHairStyle:getTrimChoices():get(i-1)
-				local hairStyle = player:isFemale() and getHairStylesInstance():FindFemaleStyle(styleId) or getHairStylesInstance():FindMaleStyle(styleId)
-				if hairStyle then
-					table.insert(hairList2, hairStyle)
-				end
-			end
 			table.sort(hairList2, compareHairStyle)
-			
+
+			local hasScissors = player:getInventory():containsEvalRecurse(predicateScissors)
+			local hasRazor = player:getInventory():containsEvalRecurse(predicateRazor)
+			local hasHairGel = player:getInventory():containsEvalRecurse(predicateHairGel)
+			local hasHairSpray = player:getInventory():containsEvalRecurse(predicateHairSpray)
+
+			local SpongieHairAPI = require("SpongieHairUnlocker/SpongieHairAPI")
 			for _,hairStyle in ipairs(hairList2) do
-				local info = {
-					id = hairStyle:getName(),
-					display = getText("IGUI_Hair_" .. hairStyle:getName()),
-					getterName = "getHairModel",
-					setterName = "setHairModel",
-					selected = false,
-					requirements = {},
-					actionTime = 300,
-				}
+				local hair = hairStyle:getName()
 
-				if hairStyle:getName() == "Bald" then
-					info.requirements.razor = player:getInventory():containsEvalRecurse(predicateRazor)
-					info.requirements.scissors = player:getInventory():containsEvalRecurse(predicateScissors)
-					
-				elseif SpongieHairAPI.GelledHairList[hairStyle:getName()] ~= nil then
-					info.requirements.hairgel = player:getInventory():containsTypeRecurse("Hairgel")
-				elseif player:getInventory():containsTagEvalRecurse("Scissors", predicateNotBroken) then
-					info.requirements.scissors = true
+				local option = hairMenu:addOption(getText("ContextMenu_CutHairFor", getText("IGUI_Hair_" .. hair)), player, ISCharacterScreen.onCutHair, hair, 300);
+				if hair == "Bald" then
+					option.name = getText("ContextMenu_ShaveHair");
+					if not hasRazor and not hasScissors then
+						self:addTooltip(option, getText("Tooltip_requireRazorOrScissors"));
+					end
 				else
-					info.requirements.scissors = false
+					local hairGel = SpongieHairAPI:NeedHairGel(hair)
+					local hairSpray = SpongieHairAPI:NeedHairSpray(hair)
+					
+					if hairGel and hairSpray then
+						-- print(hairStyle:getName() .. " REQUIRES HAIR GEL OR HAIR SPRAY")
+						option.name = getText("ContextMenu_GelHairFor", getText("IGUI_Hair_" .. hair))
+						if not hasHairGel and not hasHairSpray  then
+							self:addTooltip(option, getText("Tooltip_requireHairGelOrHairSpray"));
+						end
+					elseif hairGel then
+						-- print(hairStyle:getName() .. " REQUIRES HAIR GEL")
+						option.name = getText("ContextMenu_GelHairFor", getText("IGUI_Hair_" .. hair))
+						if not hasHairGel then
+							self:addTooltip(option, getText("Tooltip_requireHairGel"));
+						end
+					elseif hairSpray then
+						-- print(hairStyle:getName() .. " REQUIRES HAIR SPRAY")
+						option.name = getText("ContextMenu_GelHairFor", getText("IGUI_Hair_" .. hair))
+						if not hasHairSpray then
+							self:addTooltip(option, getText("Tooltip_requireHairSpray"));
+						end
+
+					elseif not hasScissors then
+						self:addTooltip(option, getText("Tooltip_RequireScissors"));
+					end
 				end
-
-				table.insert(cut_options, info)
 			end
-		end
-
-		if #tie_options > 0 then
-			hairMenu:addOption(ContextMenu_TieHair, self, self.ihm_open_hair_menu, tie_options, ContextMenu_TieHair, false)
-		end
-		if #cut_options > 0 then
-			hairMenu:addOption(ContextMenu_CutHairFor, self, self.ihm_open_hair_menu, cut_options, ContextMenu_CutHairFor, false)
 		end
 	else
 		local hairMenu = context
